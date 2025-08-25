@@ -1,6 +1,15 @@
-// src/exhibitions/exhibitions.controller.ts
-import { Body, Controller, Post, Get, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Query,
+  Param,
+  Put,
+  Delete,
+} from '@nestjs/common';
 import { CreateExhibitionDto } from './dto/create-exhibition.dto';
+import { UpdateExhibitionDto } from './dto/update-exhibition.dto';
 import { ExhibitionsService } from './exhibitions.service';
 import { Exhibition } from './schemas/exhibition.schema';
 
@@ -28,5 +37,30 @@ export class ExhibitionsController {
   @Get('details')
   async getExhibitionDetails(@Query('exhibitionId') exhibitionId: string) {
     return this.exhibitionsService.getDetailsById(exhibitionId);
+  }
+
+  // 🔹 Get exhibitions of a specific user
+  @Get('user/:userId')
+  async getUserExhibitions(
+    @Param('userId') userId: string,
+  ): Promise<Exhibition[]> {
+    return this.exhibitionsService.findByUserId(userId);
+  }
+
+  // 🔹 Update exhibition
+  @Put(':id')
+  async updateExhibition(
+    @Param('id') id: string,
+    @Body() updateExhibitionDto: UpdateExhibitionDto,
+  ): Promise<Exhibition> {
+    return this.exhibitionsService.updateExhibition(id, updateExhibitionDto);
+  }
+
+  // 🔹 Delete exhibition
+  @Delete(':id')
+  async deleteExhibition(
+    @Param('id') id: string,
+  ): Promise<{ message: string }> {
+    return this.exhibitionsService.deleteExhibition(id);
   }
 }
