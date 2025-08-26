@@ -20,7 +20,10 @@ export class ExhibitionsService {
   }
 
   async findAll(): Promise<Exhibition[]> {
-    return this.exhibitionModel.find().exec();
+    return this.exhibitionModel
+      .find()
+      .populate('gallery') // ✅ populate full gallery data
+      .exec();
   }
 
   async getAllWithGalleryInfo() {

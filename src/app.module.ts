@@ -10,6 +10,8 @@ import { GalleriesModule } from './modules/galleries/galleries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { StripeModule } from './modules/stripe/stripe.module';
 import { ConfigModule } from '@nestjs/config';
+import { ModeratorsModule } from './modules/moderators/moderators.module';
+import { NoticesModule } from './modules/notices/notices.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { ConfigModule } from '@nestjs/config';
     GalleriesModule,
     FundraisingModule,
     StripeModule,
+    ModeratorsModule,
+    NoticesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

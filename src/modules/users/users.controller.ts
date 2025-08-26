@@ -18,6 +18,11 @@ export class UsersController {
     return this.usersService.login(loginUserDto);
   }
 
+  @Get()
+  async getAllUsers() {
+    return this.usersService.getAllUsers();
+  }
+
   @Get(':userId')
   async getUserData(@Param('userId') userId: string) {
     return this.usersService.getUserData(userId);

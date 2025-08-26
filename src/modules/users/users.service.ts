@@ -123,6 +123,18 @@ export class UsersService {
     }
   }
 
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const users = await this.userModel.find().select('-password');
+      return users;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new Error('An unknown error occurred');
+    }
+  }
+
   async updateUser(
     userId: string,
     updateUserDto: UpdateUserDto,
