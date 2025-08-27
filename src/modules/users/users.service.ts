@@ -10,6 +10,8 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from './schemas/user.schema';
+import { Post } from '../posts/schemas/post.schema';
+import { Campaign } from '../fundraising/schemas/campaign.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -18,6 +20,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Post.name) private postModel: Model<Post>,
+    @InjectModel(Campaign.name) private campaignModel: Model<Campaign>,
     private jwtService: JwtService,
   ) {}
 
@@ -123,10 +127,35 @@ export class UsersService {
     }
   }
 
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsers(): Promise<any[]> {
     try {
       const users = await this.userModel.find().select('-password');
-      return users;
+
+      // Get the counts for each user
+      const usersWithCounts = await Promise.all(
+        users.map(async (user) => {
+          const postsCount = await this.postModel.countDocuments({
+            userId: user._id,
+          });
+          const campaignsCount = await this.campaignModel.countDocuments({
+            userId: user._id,
+          });
+
+          return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            age: user.age,
+            pfpUrl: user.pfpUrl,
+            stats: {
+              totalPosts: postsCount || 0,
+              totalCampaigns: campaignsCount || 0,
+            },
+          };
+        }),
+      );
+
+      return usersWithCounts;
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -188,6 +217,29 @@ export class UsersService {
       throw new Error(
         error instanceof Error ? error.message : 'An unknown error occurred',
       );
+    }
+  }
+
+  async deleteUser(
+    userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      await this.userModel.findByIdAndDelete(userId);
+
+      return {
+        success: true,
+        message: 'User deleted successfully',
+      };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new Error('An unknown error occurred');
     }
   }
 }
