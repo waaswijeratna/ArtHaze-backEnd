@@ -42,9 +42,12 @@ export class PostsService {
     return { message: 'Post deleted successfully' };
   }
 
-  // Get posts by userId
-  async getUserPosts(userId: string): Promise<Post[]> {
-    return this.postModel.find({ userId }).exec();
+  // Get posts by userId (if provided), otherwise return all posts
+  async getUserPosts(userId?: string): Promise<Post[]> {
+    if (userId) {
+      return this.postModel.find({ userId }).exec();
+    }
+    return this.postModel.find().exec();
   }
 
   async addReaction(

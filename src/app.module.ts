@@ -12,6 +12,7 @@ import { StripeModule } from './modules/stripe/stripe.module';
 import { ConfigModule } from '@nestjs/config';
 import { ModeratorsModule } from './modules/moderators/moderators.module';
 import { NoticesModule } from './modules/notices/notices.module';
+import { OverviewModule } from './modules/overview/overview.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NoticesModule } from './modules/notices/notices.module';
     StripeModule,
     ModeratorsModule,
     NoticesModule,
+    OverviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],
