@@ -11,6 +11,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Query } from '@nestjs/common';
 
 @Controller('users')
 export class UsersController {
@@ -27,8 +28,8 @@ export class UsersController {
   }
 
   @Get()
-  async getAllUsers() {
-    return this.usersService.getAllUsers();
+  async getAllUsers(@Query() query: any) {
+    return this.usersService.getAllUsers(query);
   }
 
   @Get(':userId')

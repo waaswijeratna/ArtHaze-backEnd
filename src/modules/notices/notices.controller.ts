@@ -6,10 +6,12 @@ import {
   Delete,
   Body,
   Param,
+  Query,
 } from '@nestjs/common';
 import { NoticesService } from './notices.service';
 import { CreateNoticeDto } from './dto/create-notice.dto';
 import { UpdateNoticeDto } from './dto/update-notice.dto';
+import { BaseQueryDto } from '../../common/dto/base-query.dto';
 
 @Controller('notices')
 export class NoticesController {
@@ -21,8 +23,8 @@ export class NoticesController {
   }
 
   @Get()
-  async findAll() {
-    return this.noticesService.findAll();
+  async findAll(@Query() query: BaseQueryDto) {
+    return this.noticesService.findAll(query);
   }
 
   @Get(':id')

@@ -6,7 +6,9 @@ import {
   Put,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
+import { BaseQueryDto } from '../../common/dto/base-query.dto';
 import { AdvertisementsService } from './advertisements.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { UpdateAdDto } from './dto/update-ad.dto';
@@ -21,13 +23,13 @@ export class AdvertisementsController {
   }
 
   @Get()
-  findAll() {
-    return this.adService.findAll();
+  findAll(@Query() query: BaseQueryDto) {
+    return this.adService.findAll(query);
   }
 
   @Get('user/:userId')
-  findByUser(@Param('userId') userId: string) {
-    return this.adService.findByUser(userId);
+  findByUser(@Param('userId') userId: string, @Query() query: BaseQueryDto) {
+    return this.adService.findByUser(userId, query);
   }
 
   @Get(':id')

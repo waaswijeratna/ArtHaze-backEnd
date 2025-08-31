@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { FundraisingService } from './fundraising.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { BaseQueryDto } from '../../common/dto/base-query.dto'; // ✅ import filters
 
 @Controller('campaigns')
 export class FundraisingController {
@@ -20,17 +21,17 @@ export class FundraisingController {
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string, @Query('userId') userId: string) {
-    return this.campaignService.delete(id, userId);
+  delete(@Param('id') id: string) {
+    return this.campaignService.delete(id);
   }
 
   @Get()
-  findAll() {
-    return this.campaignService.findAll();
+  findAll(@Query() query: BaseQueryDto) {
+    return this.campaignService.findAll(query);
   }
 
   @Get('user/:userId')
-  findByUser(@Param('userId') userId: string) {
-    return this.campaignService.findByUser(userId);
+  findByUser(@Param('userId') userId: string, @Query() query: BaseQueryDto) {
+    return this.campaignService.findByUser(userId, query);
   }
 }

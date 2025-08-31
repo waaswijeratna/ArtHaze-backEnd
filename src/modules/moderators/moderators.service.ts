@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
   ConflictException,
@@ -114,9 +116,41 @@ export class ModeratorsService {
   }
 
   // Get all moderators
-  async getAllModerators(): Promise<Moderator[]> {
+  async getAllModerators(
+    search?: string,
+    sortBy: 'name' | 'time' = 'time',
+    order: 'asc' | 'desc' = 'desc',
+    sortUser?: string,
+  ): Promise<Moderator[]> {
     try {
-      const moderators = await this.moderatorModel.find().select('-password');
+      const filter: any = {};
+
+      // old sortUser filter (kept for compatibility)
+      if (sortUser) {
+        filter.name = { $regex: sortUser, $options: 'i' };
+      }
+
+      // new search filter across name + email
+      if (search) {
+        filter.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      // Sorting logic
+      const sortOptions: any = {};
+      if (sortBy === 'name') {
+        sortOptions.name = order === 'asc' ? 1 : -1;
+      } else {
+        sortOptions.createdAt = order === 'asc' ? 1 : -1;
+      }
+
+      const moderators = await this.moderatorModel
+        .find(filter)
+        .select('-password')
+        .sort(sortOptions);
+
       return moderators;
     } catch (error: unknown) {
       if (error instanceof HttpException) {

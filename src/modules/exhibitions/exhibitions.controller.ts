@@ -8,6 +8,7 @@ import {
   Put,
   Delete,
 } from '@nestjs/common';
+import { BaseQueryDto } from '../../common/dto/base-query.dto';
 import { CreateExhibitionDto } from './dto/create-exhibition.dto';
 import { UpdateExhibitionDto } from './dto/update-exhibition.dto';
 import { ExhibitionsService } from './exhibitions.service';
@@ -25,13 +26,13 @@ export class ExhibitionsController {
   }
 
   @Get()
-  async getExhibitions(): Promise<Exhibition[]> {
-    return this.exhibitionsService.findAll();
+  async getExhibitions(@Query() query: BaseQueryDto): Promise<Exhibition[]> {
+    return this.exhibitionsService.findAll(query);
   }
 
   @Get('cards')
-  async getExhibitionsWithGallery() {
-    return this.exhibitionsService.getAllWithGalleryInfo();
+  async getExhibitionsWithGallery(@Query() query: BaseQueryDto) {
+    return this.exhibitionsService.getAllWithGalleryInfo(query);
   }
 
   @Get('details')
@@ -43,8 +44,9 @@ export class ExhibitionsController {
   @Get('user/:userId')
   async getUserExhibitions(
     @Param('userId') userId: string,
+    @Query() query: BaseQueryDto,
   ): Promise<Exhibition[]> {
-    return this.exhibitionsService.findByUserId(userId);
+    return this.exhibitionsService.findByUserId(userId, query);
   }
 
   // 🔹 Update exhibition

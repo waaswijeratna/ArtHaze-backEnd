@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -5,10 +7,22 @@ import { Post } from './schemas/post.schema';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { applyFeedAlgorithm } from './utils/feed-algorithm';
+import { BaseService } from '../../common/services/base.service';
+import {
+  BaseQueryDto,
+  SortOrder,
+  SortType,
+} from '../../common/dto/base-query.dto';
+import { PostsGateway } from './posts.gateway';
 
 @Injectable()
-export class PostsService {
-  constructor(@InjectModel(Post.name) private postModel: Model<Post>) {}
+export class PostsService extends BaseService<Post> {
+  constructor(
+    @InjectModel(Post.name) private postModel: Model<Post>,
+    private readonly postsGateway: PostsGateway,
+  ) {
+    super(postModel);
+  }
 
   // Create Post
   async create(createPostDto: CreatePostDto): Promise<Post> {
@@ -21,9 +35,7 @@ export class PostsService {
     const updatedPost = await this.postModel.findByIdAndUpdate(
       postId,
       updatePostDto,
-      {
-        new: true,
-      },
+      { new: true },
     );
 
     if (!updatedPost) {
@@ -43,42 +55,81 @@ export class PostsService {
   }
 
   // Get posts by userId (if provided), otherwise return all posts
-  async getUserPosts(userId?: string): Promise<Post[]> {
+  async getUserPosts(userId?: string, query?: BaseQueryDto): Promise<Post[]> {
+    const baseQuery = query || {};
+    let mongooseQuery = this.model.find();
+
+    // If userId is provided, add it to the base filters
     if (userId) {
-      return this.postModel.find({ userId }).exec();
+      mongooseQuery = mongooseQuery.where('userId', userId);
     }
-    return this.postModel.find().exec();
+
+    // Apply search filter if provided
+    if (baseQuery.search) {
+      mongooseQuery = mongooseQuery.find({
+        $or: [
+          { name: { $regex: baseQuery.search, $options: 'i' } },
+          { description: { $regex: baseQuery.search, $options: 'i' } },
+        ],
+      });
+    }
+
+    // Apply sorting
+    const sortDirection = baseQuery.order === SortOrder.ASC ? 1 : -1;
+    const sortField = baseQuery.sortBy === SortType.NAME ? 'name' : 'createdAt';
+    mongooseQuery = mongooseQuery.sort({ [sortField]: sortDirection });
+
+    // Apply user filter if provided and userId is not specified
+    if (baseQuery.sortUser && !userId) {
+      const User = this.model.db.model('User');
+      const matchingUsers = await User.find({
+        name: { $regex: baseQuery.sortUser, $options: 'i' },
+      }).select('_id');
+
+      if (matchingUsers.length > 0) {
+        const userIds = matchingUsers.map((user: any) => String(user._id));
+        mongooseQuery = mongooseQuery.where('userId').in(userIds);
+      } else {
+        return [];
+      }
+    }
+
+    return mongooseQuery.exec();
   }
 
-  async addReaction(
-    postId: string,
-    userId: string,
-    reactionName: string,
-  ): Promise<Post> {
+  // Feed (apply filters + algorithm)
+  async getFeed(userId: string, query?: BaseQueryDto): Promise<Post[]> {
+    const allPosts = await this.applyFilters(query || {}); // ✅ filter first
+    return applyFeedAlgorithm(userId, allPosts); // ✅ then feed algo
+  }
+
+  // Toggle like on post
+  async toggleLike(postId: string, userId: string): Promise<Post> {
     const post = await this.postModel.findById(postId);
     if (!post) {
       throw new NotFoundException('Post not found');
     }
 
-    // Check if the user has already reacted
-    const existingReactionIndex = post.reactions.findIndex(
-      (r) => r.userId === userId,
-    );
-
-    if (existingReactionIndex !== -1) {
-      // If user already reacted, update reaction name
-      post.reactions[existingReactionIndex].reactionName = reactionName;
+    const likeIndex = post.likes.indexOf(userId);
+    if (likeIndex === -1) {
+      // Like the post
+      post.likes.push(userId);
     } else {
-      // Otherwise, add a new reaction
-      post.reactions.push({ userId, reactionName });
+      // Unlike the post
+      post.likes.splice(likeIndex, 1);
     }
 
-    await post.save();
-    return post.toObject();
+    const updatedPost = await post.save();
+    this.postsGateway.emitPostLikeUpdate(postId, updatedPost.likes);
+    return updatedPost;
   }
 
-  async getFeed(userId: string): Promise<Post[]> {
-    const allPosts = await this.postModel.find().exec();
-    return applyFeedAlgorithm(userId, allPosts);
+  // Check if user liked a post
+  async isLikedByUser(postId: string, userId: string): Promise<boolean> {
+    const post = await this.postModel.findById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    return post.likes.includes(userId);
   }
 }

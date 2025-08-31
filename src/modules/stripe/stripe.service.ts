@@ -40,8 +40,8 @@ export class StripeService {
           },
         ],
         mode: 'payment',
-        success_url: `http://localhost:3000/fundraising/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `http://localhost:3000/fundraising/stripe/cancel`,
+        success_url: `http://localhost:3001/fundraising/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `http://localhost:3001/fundraising/stripe/cancel`,
         payment_intent_data: {
           transfer_data: {
             destination: campaign.stripeAccountId,

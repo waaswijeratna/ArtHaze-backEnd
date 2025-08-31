@@ -11,6 +11,7 @@ import { ModeratorsService } from './moderators.service';
 import { CreateModeratorDto } from './dto/create-moderator.dto';
 import { LoginModeratorDto } from './dto/login-moderator.dto';
 import { UpdateModeratorDto } from './dto/update-moderator.dto';
+import { Query } from '@nestjs/common';
 
 @Controller('moderators')
 export class ModeratorsController {
@@ -27,8 +28,18 @@ export class ModeratorsController {
   }
 
   @Get()
-  async getAllModerators() {
-    return this.moderatorsService.getAllModerators();
+  async getAllModerators(
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: 'name' | 'time',
+    @Query('order') order?: 'asc' | 'desc',
+    @Query('sortUser') sortUser?: string,
+  ) {
+    return this.moderatorsService.getAllModerators(
+      search,
+      sortBy,
+      order,
+      sortUser,
+    );
   }
 
   @Get(':moderatorId')

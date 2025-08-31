@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   ConflictException,
@@ -127,11 +130,45 @@ export class UsersService {
     }
   }
 
-  async getAllUsers(): Promise<any[]> {
+  async getAllUsers(query?: any): Promise<any[]> {
     try {
-      const users = await this.userModel.find().select('-password');
+      const {
+        search,
+        sortBy = 'time', // default
+        order = 'desc', // default
+        sortUser,
+      } = query || {};
 
-      // Get the counts for each user
+      let mongooseQuery = this.userModel.find().select('-password');
+
+      // 🔍 Search filter (by name/email)
+      if (search) {
+        mongooseQuery = mongooseQuery.find({
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+          ],
+        });
+      }
+
+      // 👤 SortUser filter (username match)
+      if (sortUser) {
+        mongooseQuery = mongooseQuery.find({
+          name: { $regex: sortUser, $options: 'i' },
+        });
+      }
+
+      // ⏱ Sorting
+      const sortDirection: 1 | -1 = order.toLowerCase() === 'asc' ? 1 : -1;
+      if (sortBy.toLowerCase() === 'time') {
+        mongooseQuery = mongooseQuery.sort({ createdAt: sortDirection });
+      } else if (sortBy.toLowerCase() === 'name') {
+        mongooseQuery = mongooseQuery.sort({ name: sortDirection });
+      }
+
+      const users = await mongooseQuery.exec();
+
+      // 📊 Attach post/campaign counts
       const usersWithCounts = await Promise.all(
         users.map(async (user) => {
           const postsCount = await this.postModel.countDocuments({
@@ -160,7 +197,9 @@ export class UsersService {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new Error('An unknown error occurred');
+      throw new Error(
+        error instanceof Error ? error.message : 'An unknown error occurred',
+      );
     }
   }
 

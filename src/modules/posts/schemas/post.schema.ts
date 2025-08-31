@@ -24,14 +24,11 @@ export class Post extends Document {
   @Prop({ required: true })
   imageUrl: string;
 
-  @Prop()
-  createdAt: string;
+  @Prop({ type: [String], default: [] })
+  likes: string[];
 
-  @Prop({
-    type: [{ userId: String, reactionName: String }],
-    default: [],
-  })
-  reactions: { userId: string; reactionName: string }[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);
