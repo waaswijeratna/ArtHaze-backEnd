@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
@@ -10,7 +11,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, TokenExpiredError, JsonWebTokenError } from '@nestjs/jwt';
 import { Moderator } from './schemas/moderator.schema';
 import { CreateModeratorDto } from './dto/create-moderator.dto';
 import { LoginModeratorDto } from './dto/login-moderator.dto';
@@ -23,9 +24,57 @@ export class ModeratorsService {
     private jwtService: JwtService,
   ) {}
 
+  private generateToken(moderator: Moderator): string {
+    return this.jwtService.sign(
+      {
+        id: moderator._id,
+        name: moderator.name,
+        email: moderator.email,
+        pfpUrl: moderator.pfpUrl,
+        age: moderator.age,
+        role: moderator.role,
+      },
+      {
+        expiresIn: '5m',
+      },
+    );
+  }
+
+  private generateRefreshToken(moderatorId: string): string {
+    return this.jwtService.sign({ id: moderatorId }, { expiresIn: '7d' });
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+    try {
+      // Verify refresh token
+      const payload = this.jwtService.verify(refreshToken);
+
+      // Find the moderator
+      const moderator = await this.moderatorModel.findById(payload.id);
+      if (!moderator) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Generate a fresh access token (with moderator data)
+      const accessToken = this.generateToken(moderator);
+
+      return { accessToken };
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+      if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Fallback for unexpected errors
+      throw new UnauthorizedException('Failed to process refresh token');
+    }
+  }
+
   async register(
     createModeratorDto: CreateModeratorDto,
-  ): Promise<{ token: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const { name, email, age, pfpUrl, password, role } = createModeratorDto;
     try {
       // Check if email already exists
@@ -49,17 +98,11 @@ export class ModeratorsService {
       });
       await newModerator.save();
 
-      // Generate JWT token
-      const token: string = this.jwtService.sign({
-        id: newModerator._id,
-        name,
-        email,
-        pfpUrl,
-        age,
-        role,
-      });
+      // Generate tokens
+      const accessToken = this.generateToken(newModerator);
+      const refreshToken = this.generateRefreshToken(String(newModerator._id));
 
-      return { token };
+      return { accessToken, refreshToken };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -74,7 +117,7 @@ export class ModeratorsService {
 
   async login(
     loginModeratorDto: LoginModeratorDto,
-  ): Promise<{ token: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const { email, password } = loginModeratorDto;
     try {
       // Check if moderator exists
@@ -92,17 +135,11 @@ export class ModeratorsService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      // Generate JWT token
-      const token: string = this.jwtService.sign({
-        id: moderator._id,
-        name: moderator.name,
-        pfpUrl: moderator.pfpUrl,
-        email: moderator.email,
-        age: moderator.age,
-        role: moderator.role,
-      });
+      // Generate tokens
+      const accessToken = this.generateToken(moderator);
+      const refreshToken = this.generateRefreshToken(String(moderator._id));
 
-      return { token };
+      return { accessToken, refreshToken };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;

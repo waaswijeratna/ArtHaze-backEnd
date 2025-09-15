@@ -27,6 +27,11 @@ export class ModeratorsController {
     return this.moderatorsService.login(loginModeratorDto);
   }
 
+  @Post('refresh')
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.moderatorsService.refreshToken(refreshToken);
+  }
+
   @Get()
   async getAllModerators(
     @Query('search') search?: string,

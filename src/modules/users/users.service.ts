@@ -11,7 +11,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, TokenExpiredError, JsonWebTokenError } from '@nestjs/jwt';
 import { User } from './schemas/user.schema';
 import { Post } from '../posts/schemas/post.schema';
 import { Campaign } from '../fundraising/schemas/campaign.schema';
@@ -28,7 +28,57 @@ export class UsersService {
     private jwtService: JwtService,
   ) {}
 
-  async register(createUserDto: CreateUserDto): Promise<{ token: string }> {
+  private generateToken(user: User): string {
+    return this.jwtService.sign(
+      {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        pfpUrl: user.pfpUrl,
+        age: user.age,
+      },
+      {
+        expiresIn: '1h',
+      },
+    );
+  }
+
+  //  Refresh token (long-lived, minimal payload)
+  private generateRefreshToken(userId: string): string {
+    return this.jwtService.sign({ id: userId }, { expiresIn: '7d' });
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+    try {
+      // Verify refresh token
+      const payload = this.jwtService.verify(refreshToken);
+
+      // Find the user
+      const user = await this.userModel.findById(payload.id);
+      if (!user) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Generate a fresh access token (with user data)
+      const accessToken = this.generateToken(user);
+
+      return { accessToken };
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+      if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Fallback for unexpected errors
+      throw new UnauthorizedException('Failed to process refresh token');
+    }
+  }
+
+  async register(
+    createUserDto: CreateUserDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const { name, email, age, pfpUrl, password } = createUserDto;
     try {
       // Check if email already exists
@@ -52,15 +102,10 @@ export class UsersService {
       await newUser.save();
 
       // Generate JWT token
-      const token: string = this.jwtService.sign({
-        id: newUser._id,
-        name,
-        email,
-        pfpUrl,
-        age,
-      });
+      const accessToken = this.generateToken(newUser);
+      const refreshToken = this.generateRefreshToken(String(newUser._id));
 
-      return { token };
+      return { accessToken, refreshToken };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -73,7 +118,9 @@ export class UsersService {
     }
   }
 
-  async login(loginUserDto: LoginUserDto): Promise<{ token: string }> {
+  async login(
+    loginUserDto: LoginUserDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const { email, password } = loginUserDto;
     try {
       // Check if user exists
@@ -91,16 +138,10 @@ export class UsersService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      // Generate JWT token
-      const token: string = this.jwtService.sign({
-        id: user._id,
-        name: user.name,
-        pfpUrl: user.pfpUrl,
-        email: user.email,
-        age: user.age,
-      });
+      const accessToken = this.generateToken(user);
+      const refreshToken = this.generateRefreshToken(String(user._id));
 
-      return { token };
+      return { accessToken, refreshToken };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -121,7 +162,7 @@ export class UsersService {
         throw new HttpException('User not found', 404);
       }
 
-      return { name: user.name, pfpUrl: user.pfpUrl }; // Return only name and pfpUrl
+      return { name: user.name, pfpUrl: user.pfpUrl };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -229,13 +270,7 @@ export class UsersService {
       await user.save();
 
       // Generate new JWT with updated info
-      const token: string = this.jwtService.sign({
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        pfpUrl: user.pfpUrl,
-        age: user.age,
-      });
+      const token = this.generateToken(user);
 
       return {
         success: true,

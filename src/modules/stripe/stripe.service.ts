@@ -6,6 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Campaign } from './schema/stripe.schema';
 import { CreateCheckoutDto } from './dto/create-checkout-session.dto';
+import { User } from '../users/schemas/user.schema';
 
 const stripe = new Stripe(
   'sk_test_51RSdqz06JJqqu9XHEvoPweuJIQLA8ry7kquRf2x8G0hDWSlSqNvcJmLgo67IcCsvCUDbKz6tiep93I9ENDvEtnmI00fMnI93wS',
@@ -18,6 +19,7 @@ const stripe = new Stripe(
 export class StripeService {
   constructor(
     @InjectModel(Campaign.name) private campaignModel: Model<Campaign>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async createCheckoutSession(dto: CreateCheckoutDto) {
@@ -108,5 +110,46 @@ export class StripeService {
       console.error('Error confirming payment:', err);
       throw err;
     }
+  }
+
+  // ========== CONNECTED ACCOUNT ONBOARDING ==========
+  async createAccountLink(userId: string) {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new Error('User not found');
+
+    // Always create a new Stripe account, but don't save it yet
+    const account = await stripe.accounts.create({
+      type: 'standard',
+      email: user.email,
+    });
+
+    // Generate onboarding link
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `http://localhost:3001/fundraising/stripe/reauth/${userId}`,
+      return_url: `http://localhost:3001/fundraising/stripe/return/${userId}?accountId=${account.id}`,
+      type: 'account_onboarding',
+    });
+
+    // Notice: we do NOT save account.id yet
+    return { url: accountLink.url };
+  }
+
+  async getAccountStatus(userId: string, accountId: string) {
+    const account = await stripe.accounts.retrieve(accountId);
+
+    // Only save if user actually finished onboarding
+    if (account.details_submitted) {
+      await this.userModel.findByIdAndUpdate(userId, {
+        stripeAccountId: account.id,
+      });
+    }
+
+    return {
+      detailsSubmitted: account.details_submitted,
+      payoutsEnabled: account.payouts_enabled,
+      chargesEnabled: account.charges_enabled,
+      accountId: account.id,
+    };
   }
 }

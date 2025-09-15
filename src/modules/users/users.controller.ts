@@ -27,6 +27,11 @@ export class UsersController {
     return this.usersService.login(loginUserDto);
   }
 
+  @Post('refresh')
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.usersService.refreshToken(refreshToken);
+  }
+
   @Get()
   async getAllUsers(@Query() query: any) {
     return this.usersService.getAllUsers(query);

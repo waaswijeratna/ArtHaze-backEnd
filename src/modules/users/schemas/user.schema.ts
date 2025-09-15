@@ -17,6 +17,9 @@ export class User extends Document {
 
   @Prop()
   pfpUrl: string;
+
+  @Prop()
+  stripeAccountId: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

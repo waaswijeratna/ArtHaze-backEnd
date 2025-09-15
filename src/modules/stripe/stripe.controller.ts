@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { CreateCheckoutDto } from './dto/create-checkout-session.dto';
 
@@ -19,5 +19,18 @@ export class StripeController {
   @Post('confirm-payment')
   async confirmPayment(@Body('sessionId') sessionId: string) {
     return this.stripeService.confirmPayment(sessionId);
+  }
+
+  @Get('connect/:userId')
+  connect(@Param('userId') userId: string) {
+    return this.stripeService.createAccountLink(userId);
+  }
+
+  @Get('account-status/:userId/:accountId')
+  async status(
+    @Param('userId') userId: string,
+    @Param('accountId') accountId: string,
+  ) {
+    return await this.stripeService.getAccountStatus(userId, accountId);
   }
 }
