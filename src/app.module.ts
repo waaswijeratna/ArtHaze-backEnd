@@ -18,13 +18,17 @@ import { AuthMiddleware } from './modules/auth/middleware/auth.middleware';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:27017/ArtPlatform'),
+    MongooseModule.forRoot(
+      process.env.MONGO_URI || 'mongodb://localhost:27017/ArtPlatform',
+    ),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET || 'your-secret-key',
+      secret:
+        process.env.JWT_SECRET ||
+        'efe555c77a4c77a2243fcfeda3e7f2654443addf3b4142421ae1906d986f88734f559ca50a97cca9da81f4668a2993cd884e9a59a5ea0bf4379980c4406f5599',
       signOptions: { expiresIn: '5m' },
     }),
     UsersModule,

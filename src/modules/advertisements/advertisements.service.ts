@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -62,9 +63,13 @@ export class AdvertisementsService extends BaseService<Advertisement> {
   }
 
   async findOne(id: string): Promise<Advertisement> {
-    const ad = await this.adModel.findById(id);
-    if (!ad) throw new NotFoundException('Advertisement not found');
-    return ad;
+    try {
+      const ad = await this.adModel.findById(id);
+      if (!ad) throw new NotFoundException('Advertisement not found');
+      return ad;
+    } catch (error) {
+      throw new Error('Advertisement not found: ' + error.message);
+    }
   }
 
   async update(

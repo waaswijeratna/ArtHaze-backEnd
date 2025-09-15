@@ -117,6 +117,10 @@ export class StripeService {
     const user = await this.userModel.findById(userId);
     if (!user) throw new Error('User not found');
 
+    if (user.stripeAccountId) {
+      return { accountId: user.stripeAccountId };
+    }
+
     // Always create a new Stripe account, but don't save it yet
     const account = await stripe.accounts.create({
       type: 'standard',
