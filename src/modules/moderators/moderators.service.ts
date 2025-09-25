@@ -35,7 +35,7 @@ export class ModeratorsService {
         role: moderator.role,
       },
       {
-        expiresIn: '5m',
+        expiresIn: '1h',
       },
     );
   }
